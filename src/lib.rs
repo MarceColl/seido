@@ -6,12 +6,15 @@
 #![feature(abi_x86_interrupt)]
 
 use core::panic::PanicInfo;
+#[cfg(test)]
+use bootloader::{BootInfo, entry_point};
 
 pub mod serial;
 pub mod vga_buffer;
 pub mod interrupts;
 pub mod gdt;
 pub mod video;
+pub mod memory;
 
 pub fn init() {
     gdt::init();
@@ -24,8 +27,10 @@ pub fn init() {
 }
 
 #[cfg(test)]
-#[no_mangle]
-pub extern "C" fn _start() -> ! {
+entry_point!(test_kmain);
+
+#[cfg(test)]
+fn test_kmain(_boot_info: &'static BootInfo) -> ! {
     init();
     test_main();
     hlt_loop();
