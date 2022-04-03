@@ -4,12 +4,14 @@
 #![test_runner(seido::test_runner)]
 #![reexport_test_harness_main = "test_main"]
 
-use core::borrow::Borrow;
 use core::panic::PanicInfo;
-use bootloader::BootInfo;
+use bootloader::{BootInfo, entry_point};
+use x86_64::structures::paging::{Page, Translate};
+use x86_64::VirtAddr;
 
-use seido::{hlt_loop, println, serial_println};
-use seido::video::init_video;
+use seido::{hlt_loop, memory, println, serial_println};
+use seido::memory::BootInfoFrameAllocator;
+// use seido::video::init_video;
 
 #[cfg(test)]
 #[panic_handler]
@@ -17,18 +19,37 @@ fn panic(info: &PanicInfo) -> ! {
     seido::test_panic_handler(info);
 }
 
-#[no_mangle] // don't mangle the name of this function
-pub extern "C" fn _start(boot_info: &'static mut BootInfo) -> ! {
-    serial_println!("Reached");
-    serial_println!("Version: {}.{}.{}", boot_info.version_major, boot_info.version_minor, boot_info.version_patch);
+entry_point!(kmain);
 
-    serial_println!("{:#?}", boot_info.framebuffer);
+fn kmain(boot_info: &'static BootInfo) -> ! {
 
     seido::init();
 
-    if let bootloader::boot_info::Optional::Some(framebuffer) = &mut boot_info.framebuffer {
-        init_video(framebuffer);
+    let phys_mem_offset = VirtAddr::new(boot_info.physical_memory_offset);
+    let mut mapper = unsafe { memory::init(phys_mem_offset) };
+    let mut frame_allocator = unsafe {
+        BootInfoFrameAllocator::init(&boot_info.memory_map)
+    };
+
+    let page_ptr: *mut u64 = page.start_address().as_mut_ptr();
+    unsafe { page_ptr.offset(400).write_volatile(0x_f021_f077_f065_f04e)};
+
+    let addresses = [
+        0xb8000,
+        0x201008,
+        0x0100_0020_1a10,
+        boot_info.physical_memory_offset,
+    ];
+
+    for &address in &addresses {
+        let virt = VirtAddr::new(address);
+        let phys = mapper.translate_addr(virt);
+        println!("{:?} -> {:?}", virt, phys);
     }
+
+    // if let bootloader::boot_info::Optional::Some(framebuffer) = &mut boot_info.framebuffer {
+    //     init_video(framebuffer);
+    // }
 
     println!("Welcome to this thing");
 
