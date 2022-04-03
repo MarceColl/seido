@@ -37,6 +37,9 @@ lazy_static! {
                     .set_stack_index(gdt::DOUBLE_FAULT_IST_INDEX);
         }
         idt.page_fault.set_handler_fn(page_fault_handler);
+        idt.debug.set_handler_fn(debug_fault_handler);
+        idt.alignment_check.set_handler_fn(alignment_check_fault_handler);
+        idt.general_protection_fault.set_handler_fn(general_protection_fault_handler);
         idt[InterruptIndex::Timer.as_usize()]
             .set_handler_fn(timer_interrupt_handler);
         idt[InterruptIndex::Keyboard.as_usize()]
@@ -51,6 +54,18 @@ pub fn init_idt() {
 
 extern "x86-interrupt" fn breakpoint_handler(stack_frame: InterruptStackFrame) {
     serial_println!("EXCEPTION: BREAKPOINT\n{:#?}", stack_frame);
+}
+
+extern "x86-interrupt" fn debug_fault_handler(stack_frame: InterruptStackFrame) {
+    serial_println!("EXCEPTION: DEBUG\n{:#?}", stack_frame);
+}
+
+extern "x86-interrupt" fn general_protection_fault_handler(stack_frame: InterruptStackFrame, error_code: u64) {
+    serial_println!("EXCEPTION: GENERAL PROTECTION FAULT\nError Code: {:b}\n{:#?}", error_code, stack_frame);
+}
+
+extern "x86-interrupt" fn alignment_check_fault_handler(stack_frame: InterruptStackFrame, error_code: u64) {
+    serial_println!("EXCEPTION: ALIGNMENT CHECK\n{:#?}", stack_frame);
 }
 
 extern "x86-interrupt" fn double_fault_handler(stack_frame: InterruptStackFrame, _error_code: u64) -> ! {

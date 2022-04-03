@@ -5,13 +5,14 @@
 #![reexport_test_harness_main = "test_main"]
 
 use core::panic::PanicInfo;
-use bootloader::{BootInfo, entry_point};
+use bootloader::{BootInfo, entry_point, boot_info::Optional};
 use x86_64::structures::paging::{Page, Translate};
 use x86_64::VirtAddr;
 
 use seido::{hlt_loop, memory, println, serial_println};
 use seido::memory::BootInfoFrameAllocator;
-// use seido::video::init_video;
+use seido::video::init_video;
+use seido::font_rendering::{Glyph, render_text};
 
 #[cfg(test)]
 #[panic_handler]
@@ -21,42 +22,49 @@ fn panic(info: &PanicInfo) -> ! {
 
 entry_point!(kmain);
 
-fn kmain(boot_info: &'static BootInfo) -> ! {
-
+fn kmain(boot_info: &'static mut BootInfo) -> ! {
     seido::init();
 
-    let phys_mem_offset = VirtAddr::new(boot_info.physical_memory_offset);
-    let mut mapper = unsafe { memory::init(phys_mem_offset) };
-    let mut frame_allocator = unsafe {
-        BootInfoFrameAllocator::init(&boot_info.memory_map)
+    let physical_memory_offset = if let Optional::Some(mem_offset) = boot_info.physical_memory_offset {
+        mem_offset
+    } else {
+        panic!("No memory offset found");
     };
 
-    let page_ptr: *mut u64 = page.start_address().as_mut_ptr();
-    unsafe { page_ptr.offset(400).write_volatile(0x_f021_f077_f065_f04e)};
+    let phys_mem_offset = VirtAddr::new(physical_memory_offset);
+    let mut mapper = unsafe { memory::init(phys_mem_offset) };
+    let mut frame_allocator = unsafe {
+        BootInfoFrameAllocator::init(&boot_info.memory_regions)
+    };
+
+    serial_println!("{:?}", font8x8::HIRAGANA_UNICODE[1]);
 
     let addresses = [
         0xb8000,
         0x201008,
         0x0100_0020_1a10,
-        boot_info.physical_memory_offset,
+        physical_memory_offset,
     ];
 
     for &address in &addresses {
         let virt = VirtAddr::new(address);
         let phys = mapper.translate_addr(virt);
-        println!("{:?} -> {:?}", virt, phys);
+        serial_println!("{:?} -> {:?}", virt, phys);
     }
 
-    // if let bootloader::boot_info::Optional::Some(framebuffer) = &mut boot_info.framebuffer {
-    //     init_video(framebuffer);
-    // }
+    if let Some(framebuffer) = boot_info.framebuffer.as_mut() {
+        use seido::video::Color;
 
-    println!("Welcome to this thing");
+        init_video(framebuffer);
+        render_text(framebuffer, "hola com vas?", 30, 30, 1, &Color::new(255, 0, 0));
+    }
+
+    serial_println!("Welcome to this thing");
 
     #[cfg(test)]
     test_main();
 
-    println!("It did not crash!");
+    serial_println!("It did not crash!");
     // hlt_loop();
     hlt_loop();
 }

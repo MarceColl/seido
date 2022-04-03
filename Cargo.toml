@@ -11,13 +11,14 @@ members = [
 ]
 
 [dependencies]
-bootloader = { version = "0.10.12", features = ["map_physical_memory"] }
+bootloader = "0.10.12"
 volatile = "0.2.6"
 spin = "0.5.2"
 x86_64 = "0.14.2"
 uart_16550 = "0.2.0"
 pic8259 = "0.10.1"
 pc-keyboard = "0.5.1"
+font8x8 = { version = "0.3.1", features = ["unicode"], default-features = false }
 
 [dependencies.lazy_static]
 version = "1.0"
@@ -28,4 +29,6 @@ name = "stack_overflow"
 harness = false
 
 [package.metadata.bootloader]
+map-physical-memory =  true
 map-framebuffer = true
+framebuffer-address = 0xb8000

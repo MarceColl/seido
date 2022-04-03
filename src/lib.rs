@@ -8,6 +8,8 @@
 use core::panic::PanicInfo;
 #[cfg(test)]
 use bootloader::{BootInfo, entry_point};
+use x86_64::registers::segmentation::Segment;
+use x86_64::structures::gdt::SegmentSelector;
 
 pub mod serial;
 pub mod vga_buffer;
@@ -15,6 +17,7 @@ pub mod interrupts;
 pub mod gdt;
 pub mod video;
 pub mod memory;
+pub mod font_rendering;
 
 pub fn init() {
     gdt::init();
@@ -30,7 +33,7 @@ pub fn init() {
 entry_point!(test_kmain);
 
 #[cfg(test)]
-fn test_kmain(_boot_info: &'static BootInfo) -> ! {
+fn test_kmain(_boot_info: &'static mut BootInfo) -> ! {
     init();
     test_main();
     hlt_loop();
